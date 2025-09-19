@@ -20,7 +20,9 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
     depends_on: [db, redis]
     command: ["celery", "-A", "tasks.celery_app", "worker", "-l", "INFO"]
