@@ -1,7 +1,9 @@
-celery==5.3.4
-redis==5.0.1
+celery==5.4.0
+redis==5.0.7
+requests==2.32.3
+python-dateutil==2.9.0
+pytz==2024.1
+feedparser==6.0.11
 psycopg2-binary==2.9.9
-requests==2.31.0
-feedparser==6.0.10
-python-dateutil==2.8.2
-anthropic==0.7.8
+pandas==2.2.2
+anthropic==0.34.0

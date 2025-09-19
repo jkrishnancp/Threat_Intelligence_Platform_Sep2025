@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { OWNER ADMIN ANALYST VIEWER }
+enum DataSourceKind { NVD OSV GHSA RSS MSRC CISA_KEV }
+
+model Org {
+  id          String      @id @default(cuid())
+  name        String
+  createdAt   DateTime    @default(now())
+  users       UserOrg[]
+  dataSources DataSource[]
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  orgs      UserOrg[]
+}
+
+model UserOrg {
+  id     String @id @default(cuid())
+  userId String
+  orgId  String
+  role   Role
+  User   User   @relation(fields: [userId], references: [id])
+  Org    Org    @relation(fields: [orgId], references: [id])
+}
+
+model DataSource {
+  id         String         @id @default(cuid())
+  orgId      String
+  kind       DataSourceKind
+  label      String
+  configJson Json
+  enabled    Boolean        @default(true)
+  lastRunAt  DateTime?
+  lastStatus String?
+  Org        Org            @relation(fields: [orgId], references: [id])
+}
+
+model Cve {
+  id           String   @id
+  publishedAt  DateTime?
+  modifiedAt   DateTime?
+  sourceRaw    Json
+  cvssScore    Float?
+  cvssSeverity String?
+  cwes         String[]
+  cpes         String[]
+  summaries    Json?
+  isKev        Boolean  @default(false)
+}
+
+model OsvVuln {
+  id           String   @id
+  ecosystem    String?
+  package      String?
+  affected     Json?
+  sourceRaw    Json
+  publishedAt  DateTime?
+  modifiedAt   DateTime?
+  cvssScore    Float?
+  cvssSeverity String?
+  summaries    Json?
+}
+
+model Advisory {
+  id          String   @id @default(cuid())
+  source      String
+  title       String
+  link        String?
+  publishedAt DateTime?
+  fetchedAt   DateTime @default(now())
+  summary     String?
+  summaryTech String?
+  tags        String[]
+  sourceRaw   Json
+}

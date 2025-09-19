@@ -1,116 +1,40 @@
-version: '3.8'
-
+version: "3.9"
 services:
+  web:
+    build: ./apps/web
+    env_file: ./.env
+    depends_on: [api]
+    ports: ["3000:3000"]
+  api:
+    build: ./apps/api
+    env_file: ./.env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      - REDIS_URL=${REDIS_URL}
+    depends_on: [db]
+    ports: ["8000:8000"]
+  worker:
+    build: ./workers/etl
+    env_file: ./.env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    depends_on: [db, redis]
+    command: ["celery", "-A", "tasks.celery_app", "worker", "-l", "INFO"]
+  beat:
+    build: ./workers/etl
+    command: ["celery", "-A", "tasks.celery_app", "beat", "-l", "INFO"]
+    env_file: ./.env
+    depends_on: [worker]
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: tip
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+    ports: ["5432:5432"]
   redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tip
-      - REDIS_URL=redis://redis:6379/0
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-      - MSRC_API_KEY=${MSRC_API_KEY:-}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./apps/api:/app
-      - ./packages:/packages
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  worker:
-    build:
-      context: .
-      dockerfile: workers/etl/Dockerfile
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tip
-      - REDIS_URL=redis://redis:6379/0
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-      - MSRC_API_KEY=${MSRC_API_KEY:-}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./workers/etl:/app
-      - ./packages:/packages
-    command: celery -A tasks worker --loglevel=info
-
-  beat:
-    build:
-      context: .
-      dockerfile: workers/etl/Dockerfile
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tip
-      - REDIS_URL=redis://redis:6379/0
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-      - MSRC_API_KEY=${MSRC_API_KEY:-}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./workers/etl:/app
-      - ./packages:/packages
-    command: celery -A tasks beat --loglevel=info
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tip
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-default-secret}
-      - EMAIL_SERVER_HOST=${EMAIL_SERVER_HOST:-}
-      - EMAIL_SERVER_USER=${EMAIL_SERVER_USER:-}
-      - EMAIL_SERVER_PASSWORD=${EMAIL_SERVER_PASSWORD:-}
-      - EMAIL_FROM=${EMAIL_FROM:-tip-noreply@example.com}
-      - API_BASE_URL=http://api:8000
-    depends_on:
-      - db
-      - api
-    volumes:
-      - ./apps/web:/app
-      - ./packages:/packages
-    command: npm run dev
-
-volumes:
-  postgres_data:
+    image: redis:7
+    ports: ["6379:6379"]
