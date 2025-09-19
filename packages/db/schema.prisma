@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       UserOrg[]
+  dataSources DataSource[]
+
+  @@map("orgs")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orgs UserOrg[]
+
+  @@map("users")
+}
+
+model UserOrg {
+  id     String @id @default(cuid())
+  userId String
+  orgId  String
+  role   Role   @default(VIEWER)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@map("user_orgs")
+}
+
+model DataSource {
+  id         String         @id @default(cuid())
+  orgId      String
+  kind       DataSourceKind
+  label      String
+  enabled    Boolean        @default(true)
+  configJson Json?
+  lastRunAt  DateTime?
+  lastStatus String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("data_sources")
+}
+
+model Cve {
+  id          String    @id // CVE-YYYY-NNNN
+  orgId       String
+  description String
+  severity    String? // LOW, MEDIUM, HIGH, CRITICAL
+  baseScore   Float?
+  vector      String?
+  cweIds      String[] // Array of CWE-123 strings
+  cpes        String[] // Array of CPE strings
+  isKev       Boolean   @default(false)
+  publishedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+
+  @@map("cves")
+}
+
+model OsvVuln {
+  id          String   @id // OSV ID like GHSA-xxxx-xxxx-xxxx
+  orgId       String
+  ecosystem   String? // npm, PyPI, Go, etc.
+  packageName String?
+  summary     String
+  severity    String? // LOW, MEDIUM, HIGH, CRITICAL
+  publishedAt DateTime?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@map("osv_vulns")
+}
+
+model Advisory {
+  id           String   @id @default(cuid())
+  orgId        String
+  title        String
+  content      String
+  summary      String? // Executive summary ≤80 words
+  summaryTech  String? // Technical bullet points
+  source       String // RSS feed name, GHSA, MSRC, etc.
+  sourceUrl    String?
+  publishedAt  DateTime?
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@map("advisories")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum DataSourceKind {
+  NVD
+  OSV
+  GHSA
+  RSS
+  MSRC
+  CISA_KEV
+}
